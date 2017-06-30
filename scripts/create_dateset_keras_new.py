@@ -12,7 +12,7 @@ from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("-l", "--library", dest="library", help="Name of the library used (mxnet or keras")
 parser.add_option("-i", "--input-folder", dest="input_folder", help="Data input folder")
-parser.add_option("-o", "--output-folder", dest="output_folder", help="Data output folder")
+parser.add_option("-t", "--task", dest="task", help="Task type (table or value)")
 (options, args) = parser.parse_args()
 
 
@@ -163,6 +163,7 @@ def read_json(json_file):
 		data = json.load(data_file)
 	#pprint(data)
 	found_valid_value = False
+	correct_class = False
 	dict = {}
 
 	if 'pdf' in data:
@@ -179,6 +180,7 @@ def read_json(json_file):
 				#print(sub_item)
 				if 'name' in sub_item:
 					name = entry.get("name").lower()
+					#print(name)
 				elif 'fileName' in sub_item:
 					file_name = entry.get("fileName")
 					if file_name.endswith('.jpeg'):
@@ -193,6 +195,13 @@ def read_json(json_file):
 				elif 'height' in sub_item:
 					height = entry.get("height")
 			if found_valid_value == True:
+				if options.task == 'value':
+					if 'mk-' in name:
+						correct_class = True
+				elif options.task == 'table':
+					if 'column' in name or 'row' in name or 'header' in name or 'table' in name:
+						correct_class = True
+			if correct_class == True:
 				if pdf_name.endswith('.pdf'):
 					pdf_name = pdf_name.replace('.pdf','')
 				elif pdf_name.endswith('.PDF'):
@@ -200,6 +209,7 @@ def read_json(json_file):
 				key = pdf_name + '_' + file_name + '_' + name
 				dict[key] = [x_1, y_1, width, height, name]
 				found_valid_value = False
+				correct_class = False
 	#print(dict)
 	return dict
 
@@ -282,6 +292,7 @@ def create_dataset():
 			#print(df.iloc[index, column_index])
 			#print('*****')
 			if isinstance(item, str):
+				print(item)                
 				size = cv2.imread(os.path.join(input_path, "train_data", item)).shape
 				height = size[0]
 				width = size[1]
@@ -291,25 +302,22 @@ def create_dataset():
 				size_list.append(tmp_size_list)
 				#print(height, width)
 			elif isinstance(item, list):
-				#print('List item: ' + str(item))
+				print('List item: ' + str(item))
 				# Check if the length is as expected
 				if len(item) == 5:
 					#print(item[0])
-					item[0] = int(float(item[0].replace("%", ""))*0.01 * width)
-					#print(item[0])
-					#print(item[1])
-					item[1] = int(float(item[1].replace("%", ""))*0.01 * height)
-					#print(item[1])
-					#print(item[2])
-					item[2] = int(item[0] + (float(item[2].replace("%", ""))*0.01 * width))
-					if item[2] > width:
-						#print('!!! TOO LARGE !!!')
-						#print(width)
-						#print(item[2])
-						item[2] = width
-						#print(item[2])
-					#print(item[3])
-					item[3] = int(item[1] + (float(item[3].replace("%", ""))*0.01 * height))
+					if isinstance(item[0], unicode):
+						print(type(item[0]))
+						item[0] = int(float(item[0].replace("%", ""))*0.01 * width)
+						#print(item[0])
+						#print(item[1])
+						item[1] = int(float(item[1].replace("%", ""))*0.01 * height)
+						#print(item[1])
+ 						#print(item[2])
+						item[2] = int(item[0] + (float(item[2].replace("%", ""))*0.01 * width))
+						if item[2] > width:
+							item[2] = width
+						item[3] = int(item[1] + (float(item[3].replace("%", ""))*0.01 * height))
 					#print(item[3])
 					#print(item[4])
 					# Normalize the classes
